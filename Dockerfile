@@ -1,5 +1,5 @@
 # parameters
-ARG REPO_NAME="Dockey_1"
+ARG REPO_NAME="dockey_1"
 ARG DESCRIPTION="Base class repo for UML EECE 5560"
 ARG MAINTAINER="Ansh Sharma(itsanshsharma1790@gmail.com)"
 # pick an icon from: https://fontawesome.com/v4.7.0/icons/
