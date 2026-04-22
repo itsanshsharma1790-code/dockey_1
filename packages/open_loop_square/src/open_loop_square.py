@@ -24,33 +24,38 @@ class Drive_Square:
     def run(self):
         rospy.spin()
 
-    def move_robot(self):
-        for i in range(4):
-            # move straight
-            self.cmd_msg.header.stamp = rospy.Time.now()
+ def move_robot(self):
+
+    rate = rospy.Rate(10)  # 10 Hz
+
+    for i in range(4):
+
+        # 🔹 Move forward
+        start_time = rospy.Time.now()
+        while (rospy.Time.now() - start_time).to_sec() < 2.0:
             self.cmd_msg.v = 0.3
             self.cmd_msg.omega = 0.0
             self.pub.publish(self.cmd_msg)
-            rospy.loginfo("Forward")
-            rospy.sleep(2.0)
+            rate.sleep()
 
-            # stop briefly
-            self.stop_robot()
-            rospy.sleep(0.5)
+        # 🔹 Stop briefly
+        self.stop_robot()
+        rospy.sleep(0.5)
 
-            # turn in place
-            self.cmd_msg.header.stamp = rospy.Time.now()
+        # 🔹 Turn in place
+        start_time = rospy.Time.now()
+        while (rospy.Time.now() - start_time).to_sec() < 1.2:
             self.cmd_msg.v = 0.0
             self.cmd_msg.omega = 2.0
             self.pub.publish(self.cmd_msg)
-            rospy.loginfo("Turning")
-            rospy.sleep(1.0)
+            rate.sleep()
 
-            # stop briefly
-            self.stop_robot()
-            rospy.sleep(0.5)
-                
+        # 🔹 Stop briefly
         self.stop_robot()
+        rospy.sleep(0.5)
+
+    self.stop_robot()
+ 
 
 if __name__ == '__main__':
     try:
