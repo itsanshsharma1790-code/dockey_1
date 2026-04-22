@@ -60,6 +60,6 @@ class Drive_Square:
 if __name__ == '__main__':
     try:
         duckiebot_movement = Drive_Square()
-        duckiebot_movement.run()
+        duckiebot_movement.move_robot()
     except rospy.ROSInterruptException:
         pass
