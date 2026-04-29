@@ -1,64 +1,82 @@
 #!/usr/bin/env python3
+
 import rospy
 from duckietown_msgs.msg import Twist2DStamped
-from duckietown_msgs.msg import FSMState
 
-class Drive_Square:
+class DriveSquare:
     def __init__(self):
+        rospy.init_node("drive_square_node", anonymous=True)
+
+        # IMPORTANT:
+        # Keep this as /akandb/... only if that topic exists on your robot.
+        # If rostopic list shows /mybota002410/car_cmd_switch_node/cmd,
+        # then change it to that instead.
+        self.pub = rospy.Publisher(
+            "/akandb/car_cmd_switch_node/cmd",
+            Twist2DStamped,
+            queue_size=1
+        )
+
         self.cmd_msg = Twist2DStamped()
-        rospy.init_node('drive_square_node', anonymous=True)
-        
-        self.pub = rospy.Publisher('/akandb/car_cmd_switch_node/cmd', Twist2DStamped, queue_size=1)
-        rospy.Subscriber('/akandb/fsm_node/mode', FSMState, self.fsm_callback, queue_size=1)
-        
-    def fsm_callback(self, msg):
-        rospy.loginfo("State: %s", msg.state)
-        if msg.state == "NORMAL_JOYSTICK_CONTROL":
-            self.stop_robot()
-        elif msg.state == "LANE_FOLLOWING":            
-            rospy.sleep(1)
-            self.move_robot()
+
+        rospy.loginfo("Node started successfully")
+        rospy.loginfo("Waiting 2 seconds before starting movement...")
+        rospy.sleep(2.0)
+
+        self.move_robot()
+
+    def publish_cmd(self, v, omega):
+        self.cmd_msg.header.stamp = rospy.Time.now()
+        self.cmd_msg.v = v
+        self.cmd_msg.omega = omega
+        self.pub.publish(self.cmd_msg)
 
     def stop_robot(self):
-        self.cmd_msg.header.stamp = rospy.Time.now()
-        self.cmd_msg.v = 0.0
-        self.cmd_msg.omega = 0.0
-        self.pub.publish(self.cmd_msg)
+        self.publish_cmd(0.0, 0.0)
+        rospy.loginfo("Robot stopped")
+
+    def move_forward(self, duration, speed=0.25):
+        rospy.loginfo(f"Moving forward for {duration:.1f} seconds at speed {speed}")
+        rate = rospy.Rate(20)
+        start_time = rospy.Time.now()
+
+        while (rospy.Time.now() - start_time).to_sec() < duration and not rospy.is_shutdown():
+            self.publish_cmd(speed, 0.0)
+            rate.sleep()
+
+        self.stop_robot()
+        rospy.sleep(0.5)
+
+    def turn_in_place(self, duration, omega=3.0):
+        rospy.loginfo(f"Turning in place for {duration:.1f} seconds at omega {omega}")
+        rate = rospy.Rate(20)
+        start_time = rospy.Time.now()
+
+        while (rospy.Time.now() - start_time).to_sec() < duration and not rospy.is_shutdown():
+            self.publish_cmd(0.0, omega)
+            rate.sleep()
+
+        self.stop_robot()
+        rospy.sleep(0.5)
+
+    def move_robot(self):
+        rospy.loginfo("Starting square movement")
+
+        for side in range(1, 5):
+            rospy.loginfo(f"--- Side {side} of 4 ---")
+            self.move_forward(duration=2.0, speed=0.25)
+            self.turn_in_place(duration=1.3, omega=3.0)
+
+        rospy.loginfo("Square completed successfully")
+        self.stop_robot()
 
     def run(self):
         rospy.spin()
 
-    def move_robot(self):
-        # Drive a square: repeat (go straight + turn 90°) 4 times
-        for _ in range(4):
-            # --- Go straight for ~1 meter ---
-            self.cmd_msg.header.stamp = rospy.Time.now()
-            self.cmd_msg.v = 0.5        # forward velocity (m/s)
-            self.cmd_msg.omega = 0.0
-            self.pub.publish(self.cmd_msg)
-            rospy.loginfo("Driving straight...")
-            rospy.sleep(2.0)            # tune this so robot travels ~1 meter
 
-            self.stop_robot()
-            rospy.sleep(0.5)            # brief pause before turning
-
-            # --- Turn 90 degrees in place ---
-            self.cmd_msg.header.stamp = rospy.Time.now()
-            self.cmd_msg.v = 0.0
-            self.cmd_msg.omega = 1.5    # angular velocity (rad/s)
-            self.pub.publish(self.cmd_msg)
-            rospy.loginfo("Turning 90 degrees...")
-            rospy.sleep(1.05)           # tune this: ~pi/2 / omega = 1.047s at 1.5 rad/s
-
-            self.stop_robot()
-            rospy.sleep(0.5)            # brief pause before next side
-
-        self.stop_robot()
-        rospy.loginfo("Square complete!")
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
-        duckiebot_movement = Drive_Square()
-        duckiebot_movement.run()        # <-- fixed: use run(), not move_robot()
+        node = DriveSquare()
+        node.run()
     except rospy.ROSInterruptException:
         pass
