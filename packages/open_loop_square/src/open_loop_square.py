@@ -17,13 +17,13 @@ class OpenLoopSquare:
         self.msg = WheelsCmdStamped()
         self.rate = rospy.Rate(10)
 
-        rospy.loginfo("🚀 Node started successfully")
+        rospy.loginfo(" Node started successfully")
         rospy.sleep(2)
 
         self.move_square()
 
     def move_forward(self, duration=2.0, speed=0.4):
-        rospy.loginfo("➡️ Moving forward")
+        rospy.loginfo(" Moving forward")
 
         start = rospy.Time.now()
         while (rospy.Time.now() - start).to_sec() < duration and not rospy.is_shutdown():
@@ -35,7 +35,7 @@ class OpenLoopSquare:
         self.stop_robot()
 
     def turn_right(self, duration=1.0, speed=0.4):
-        rospy.loginfo("🔄 Turning right")
+        rospy.loginfo(" Turning right")
 
         start = rospy.Time.now()
         while (rospy.Time.now() - start).to_sec() < duration and not rospy.is_shutdown():
@@ -47,7 +47,7 @@ class OpenLoopSquare:
         self.stop_robot()
 
     def stop_robot(self):
-        rospy.loginfo("🛑 Stopping")
+        rospy.loginfo(" Stopping")
 
         for _ in range(10):
             self.msg.vel_left = 0.0
@@ -58,14 +58,14 @@ class OpenLoopSquare:
         rospy.sleep(0.5)
 
     def move_square(self):
-        rospy.loginfo("🔵 Starting square movement")
+        rospy.loginfo(" Starting square movement")
 
         for i in range(4):
-            rospy.loginfo(f"⬜ Side {i+1}")
+            rospy.loginfo(f" Side {i+1}")
             self.move_forward()
             self.turn_right()
 
-        rospy.loginfo("✅ Square completed")
+        rospy.loginfo(" Square completed")
         self.stop_robot()
 
     def run(self):
