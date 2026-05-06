@@ -1,80 +1,172 @@
 #!/usr/bin/env python3
 
 import rospy
-from duckietown_msgs.msg import WheelsCmdStamped
 
-class OpenLoopSquare:
+from duckietown_msgs.msg import WheelsCmdStamped
+from duckietown_msgs.msg import WheelEncoderStamped
+
+
+class ClosedLoopSquare:
 
     def __init__(self):
-        rospy.init_node("open_loop_square_node", anonymous=True)
 
+        rospy.init_node("closed_loop_square_node", anonymous=True)
+
+        # Publisher
         self.pub = rospy.Publisher(
             "/mybota002410/wheels_driver_node/wheels_cmd",
             WheelsCmdStamped,
             queue_size=1
         )
 
-        self.msg = WheelsCmdStamped()
-        self.rate = rospy.Rate(10)
+        # Subscribers
+        rospy.Subscriber(
+            "/mybota002410/right_wheel_encoder_node/tick",
+            WheelEncoderStamped,
+            self.right_encoder_callback
+        )
 
-        rospy.loginfo(" Node started successfully")
+        rospy.Subscriber(
+            "/mybota002410/left_wheel_encoder_node/tick",
+            WheelEncoderStamped,
+            self.left_encoder_callback
+        )
+
+        self.msg = WheelsCmdStamped()
+
+        # Encoder values
+        self.right_tick = 0
+        self.left_tick = 0
+
+        self.rate = rospy.Rate(20)
+
+        rospy.loginfo("Closed-loop node started")
+
         rospy.sleep(2)
 
         self.move_square()
 
-    def move_forward(self, duration=2.0, speed=0.4):
-        rospy.loginfo(" Moving forward")
+    # -----------------------------
+    # Encoder callbacks
+    # -----------------------------
 
-        start = rospy.Time.now()
-        while (rospy.Time.now() - start).to_sec() < duration and not rospy.is_shutdown():
-            self.msg.vel_left = speed
-            self.msg.vel_right = speed
-            self.pub.publish(self.msg)
-            self.rate.sleep()
+    def right_encoder_callback(self, msg):
+        self.right_tick = msg.data
 
-        self.stop_robot()
+    def left_encoder_callback(self, msg):
+        self.left_tick = msg.data
 
-    def turn_right(self, duration=1.0, speed=0.4):
-        rospy.loginfo(" Turning right")
+    # -----------------------------
+    # Wheel publish helper
+    # -----------------------------
 
-        start = rospy.Time.now()
-        while (rospy.Time.now() - start).to_sec() < duration and not rospy.is_shutdown():
-            self.msg.vel_left = speed
-            self.msg.vel_right = -speed
-            self.pub.publish(self.msg)
-            self.rate.sleep()
+    def publish_wheels(self, left, right):
 
-        self.stop_robot()
+        self.msg.header.stamp = rospy.Time.now()
+        self.msg.vel_left = left
+        self.msg.vel_right = right
+
+        self.pub.publish(self.msg)
+
+    # -----------------------------
+    # Stop robot
+    # -----------------------------
 
     def stop_robot(self):
-        rospy.loginfo(" Stopping")
+
+        rospy.loginfo("Stopping robot")
 
         for _ in range(10):
-            self.msg.vel_left = 0.0
-            self.msg.vel_right = 0.0
-            self.pub.publish(self.msg)
+            self.publish_wheels(0.0, 0.0)
             self.rate.sleep()
 
-        rospy.sleep(0.5)
+    # -----------------------------
+    # Move straight using encoder
+    # -----------------------------
+
+    def move_straight(self, target_ticks=300, speed=0.4):
+
+        rospy.loginfo("Moving straight")
+
+        start_tick = self.right_tick
+
+        while abs(self.right_tick - start_tick) < target_ticks and not rospy.is_shutdown():
+
+            self.publish_wheels(speed, speed)
+
+            rospy.loginfo(
+                "Current ticks: %d / %d",
+                abs(self.right_tick - start_tick),
+                target_ticks
+            )
+
+            self.rate.sleep()
+
+        self.stop_robot()
+
+    # -----------------------------
+    # Rotate using encoder
+    # -----------------------------
+
+    def rotate_in_place(self, target_ticks=120, speed=0.4):
+
+        rospy.loginfo("Rotating in place")
+
+        start_tick = self.right_tick
+
+        while abs(self.right_tick - start_tick) < target_ticks and not rospy.is_shutdown():
+
+            self.publish_wheels(speed, -speed)
+
+            rospy.loginfo(
+                "Rotation ticks: %d / %d",
+                abs(self.right_tick - start_tick),
+                target_ticks
+            )
+
+            self.rate.sleep()
+
+        self.stop_robot()
+
+    # -----------------------------
+    # Square movement
+    # -----------------------------
 
     def move_square(self):
-        rospy.loginfo(" Starting square movement")
+
+        rospy.loginfo("Starting closed-loop square")
 
         for i in range(4):
-            rospy.loginfo(f" Side {i+1}")
-            self.move_forward()
-            self.turn_right()
 
-        rospy.loginfo(" Square completed")
+            rospy.loginfo("Side %d of 4", i + 1)
+
+            self.move_straight(
+                target_ticks=300,
+                speed=0.4
+            )
+
+            self.rotate_in_place(
+                target_ticks=120,
+                speed=0.4
+            )
+
+        rospy.loginfo("Square completed")
+
         self.stop_robot()
+
+    # -----------------------------
+    # Run node
+    # -----------------------------
 
     def run(self):
         rospy.spin()
 
 
 if __name__ == "__main__":
+
     try:
-        node = OpenLoopSquare()
+        node = ClosedLoopSquare()
         node.run()
+
     except rospy.ROSInterruptException:
         pass
