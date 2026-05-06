@@ -146,7 +146,7 @@ class ClosedLoopSquare:
             )
 
             self.rotate_in_place(
-                target_ticks=120,
+                target_ticks=70,
                 speed=0.4
             )
 
